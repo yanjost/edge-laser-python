@@ -54,7 +54,7 @@ class AbstractCommand(object):
     def parse_type(self, data):
         parsed = OneChar.parse(data)
 
-        print ("Parsed : {}".format(parsed.one))
+        # print ("Parsed : {}".format(parsed.one))
 
         return parsed.one
 
@@ -63,11 +63,6 @@ class AbstractCommand(object):
 
 class PlayerKeyCommand(AbstractCommand):
 
-    PlayerKeyPacket = Struct("PlayerKeyPacket",
-                                       ULInt8("player"),
-                                       ULInt8("key"),
-    )
-
     def __init__(self):
         self.key = None
         self.player = None
@@ -75,19 +70,24 @@ class PlayerKeyCommand(AbstractCommand):
 
 
     def parse(self, socket, game):
-        if not self.parse_type(socket.peek(1)) == 'K' :
+        if not self.parse_type(socket.peek(1)) == 'I' :
             return False
 
         socket.read(1)
 
         data = socket.read(2)
 
-        packet = self.PlayerKeyPacket.parse(data)
+        packet = PlayerKeyPacket.parse(data)
 
-        self.player = packet.player
-        self.key = player.key
+        self.player1 = packet.player1
+        self.player2 = packet.player2
 
-        print("Player {} key {}".format(self.player, self.key))
+        # print("Player {} key {}".format(self.player, self.key))
+        # print("Player 1 {}".format(self.player1))
+        # print("Player 2 {}".format(self.player2))
+
+        game.player1_keys = self.player1
+        game.player2_keys = self.player2
 
         return True
 
@@ -127,6 +127,8 @@ class GoCommand(AbstractCommand):
         if not self.parse_type(socket.peek(1)) == 'G' :
             return False
 
+        socket.read(1)
+
         game.stopped = False
 
         return True
@@ -136,6 +138,8 @@ class StopCommand(AbstractCommand):
     def parse(self, socket, game):
         if not self.parse_type(socket.peek(1)) == 'S' :
             return False
+
+        socket.read(1)
 
         game.stopped = True
 
@@ -191,6 +195,30 @@ PausePacket = Struct("PausePacket",
     Magic("S"),
 )
 
+PlayerKeyPacket = Struct("PlayerKeyPacket",
+    # Magic("I"),
+    BitStruct("player2",
+              Flag("xp"),
+              Flag("xn"),
+              Flag("yp"),
+              Flag("yn"),
+              Flag("x"),
+              Flag("y"),
+              Flag("a"),
+              Flag("b"),
+              ),
+    BitStruct("player1",
+              Flag("xp"),
+              Flag("xn"),
+              Flag("yp"),
+              Flag("yn"),
+              Flag("x"),
+              Flag("y"),
+              Flag("a"),
+              Flag("b"),
+              ),
+)
+
 
 class LaserGame(object):
     HOST = '127.0.0.1'
@@ -211,13 +239,16 @@ class LaserGame(object):
         self.sendCmd(HelloPacket.build(Container(id='\x00', gamename=gamename)))
 
         self.socket = Socket(self.sock)
+        self.player1_keys = None
+        self.player2_keys = None
+
 
     def sendCmd(self, data):
-        print("Sending '{}'".format(str(data)))
+        # print("Sending '{}'".format(str(data)))
         return self.sock.send(data)
 
     def sendPacket(self, cls, **kwargs):
-        print("Sending {} {}".format(cls.name, ", ".join(["{}={}".format(k,v) for k,v in kwargs.iteritems()])))
+        # print("Sending {} {}".format(cls.name, ", ".join(["{}={}".format(k,v) for k,v in kwargs.iteritems()])))
         self.sendCmd(cls.build(Container(**kwargs)))
 
     def setResolution(self, px):
@@ -247,6 +278,7 @@ class LaserGame(object):
             inst = cls()
 
             if inst.parse(self.socket, self):
+                # print(str(inst))
                 break
 
 

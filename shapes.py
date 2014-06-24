@@ -19,15 +19,16 @@ while not game.isStopped():
 
     commands = game.receiveServerCommands()
 
-    for cmd in commands:
+    # for cmd in commands:
 
-        if cmd.key == '1' :
+    if game.player1_keys:
+        if game.player1_keys.yp  :
             posy-=5
-        elif cmd.key == '2':
+        if game.player1_keys.xn :
             posx-=5
-        elif cmd.key == '3':
+        if game.player1_keys.yn :
             posy+=5
-        elif cmd.key == '4':
+        if game.player1_keys.xp :
             posx+=5
 
     game.addRectangle(posx, posy, posx+10, posy+10, EdgeLaser.LaserColor.RED)
