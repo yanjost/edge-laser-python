@@ -4,9 +4,12 @@ import socket
 import math
 import struct
 import itertools
+import time
 
 from construct import *
 from construct import macros
+
+import datetime
 
 HOST="localhost"
 PORT=4242
@@ -273,6 +276,15 @@ class LaserGame(object):
     def setDefaultColor(self, color):
         self.color = color
         return self
+
+    def setFrameRate(self,fps):
+        self.fps=fps
+
+    def newFrame(self):
+        self.last_frame_start = datetime.datetime.now()
+
+    def endFrame(self):
+        time.sleep(1.0/self.fps-(datetime.datetime.now()-self.last_frame_start).total_seconds())
 
     def isStopped(self):
         return self.stopped
