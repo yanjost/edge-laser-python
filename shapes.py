@@ -11,12 +11,13 @@ posx = 450
 
 posy = 450
 
+font = EdgeLaser.LaserFont('lcd.elfc')
+
 while game.isStopped():
     game.receiveServerCommands()
 
-
+i = 1
 while not game.isStopped():
-
     commands = game.receiveServerCommands()
 
     # for cmd in commands:
@@ -35,9 +36,15 @@ while not game.isStopped():
 
     coeff = 0 if coeff > 499 else coeff + 4
 
+    i += 1
+    if i > 400:
+        i = 1
+    font.render(game, 'EDGEFEST', 40, 40, coeff=i%40+1)
+
     game.addLine(250, 0, coeff, 250, EdgeLaser.LaserColor.CYAN) \
-	    .addLine(250, 500, coeff, 250, EdgeLaser.LaserColor.CYAN) \
-	    .addCircle(250, 250, coeff, EdgeLaser.LaserColor.FUCHSIA) \
-	    .addRectangle(10, 10, coeff, coeff) \
-		.refresh()
+    .addLine(250, 500, coeff, 250, EdgeLaser.LaserColor.CYAN) \
+    .addCircle(250, 250, coeff, EdgeLaser.LaserColor.FUCHSIA) \
+    .addRectangle(10, 10, coeff, coeff) #\
+
+    game.refresh()
     time.sleep(0.05)

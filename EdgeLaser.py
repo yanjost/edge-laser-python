@@ -1,7 +1,9 @@
 from __future__ import print_function
 import sys
-from gevent import socket
+import socket
 import math
+import struct
+import itertools
 
 from construct import *
 from construct import macros
@@ -10,6 +12,16 @@ HOST="localhost"
 PORT=4242
 
 OneChar = Struct("OneChar", String("one",1))
+
+
+def grouper(n, iterable):
+    it = iter(iterable)
+    while True:
+        chunk = tuple(itertools.islice(it, n))
+        if not chunk:
+            return
+        yield chunk
+
 
 class Socket(object):
     def __init__(self, socket):
@@ -229,6 +241,7 @@ class LaserGame(object):
         self.gamename = gamename
         self.sock = None
         self.stopped = True
+        self.resolution = 65536
         self.multiplicator = 0.0
         self.color = LaserColor.LIME # Because it's REALLY awesome
 
@@ -252,6 +265,7 @@ class LaserGame(object):
         self.sendCmd(cls.build(Container(**kwargs)))
 
     def setResolution(self, px):
+        self.resolution = px
         self.multiplicator = math.floor(65535.0/px);
 
         return self
@@ -281,18 +295,54 @@ class LaserGame(object):
                 # print(str(inst))
                 break
 
-
-
         return commands
+
+    def liangbarsky(self, x1, y1, x2, y2):
+        res = self.resolution
+        dx = x2 - x1
+        dy = y2 - y1
+        dt0, dt1 = 0, 1
+        c_x1 = x1; c_x2 = x2; c_y1 = y1; c_y2 = y2
+
+        checks = ((-dx, x1 - 0),   # left
+                 (dx, res - x1),   # right
+                 (-dy, y1 - 0),  # top
+                 (dy, res - y1))     # bottom
+
+        for p, q in checks:
+            if p == 0 and q < 0:
+                return None, None, None, None
+            if p != 0:
+                dt = q / (p * 1.0)
+                if p < 0:
+                    if dt > dt1:
+                        return None, None, None, None
+                    dt0 = max(dt0, dt)
+                else:
+                    if dt < dt0:
+                        return None, None, None, None
+                    dt1 = min(dt1, dt)
+        if dt0 > 0:
+            c_x1 = x1 + dt0 * dx
+            c_y1 = y1 + dt0 * dy
+        if dt1 < 1:
+            c_x2 = x1 + dt1 * dx
+            c_y2 = y1 + dt1 * dy
+
+        return c_x1, c_y1, c_x2, c_y2
+
 
     def addLine(self, x1, y1, x2, y2, color = None):
         m = self.multiplicator
 
+        #make sure coordinates are in the correct range
+        x1, y1, x2, y2 = self.liangbarsky(x1, y1, x2, y2)
+
         # data = LinePacket.build(Container(gameid=self.gameid, x1=x1, y1=y1, x2=x2, y2=y2, color=color or self.color))
 
         # self.sendCmd(data)
-
-        self.sendPacket(LinePacket, gameid=self.gameid, x1=x1*m, y1=y1*m, x2=x2*m, y2=y2*m, color=color or self.color)
+        if x1 is not None:
+            self.sendPacket(LinePacket, gameid=self.gameid, x1=x1*m, y1=y1*m, x2=x2*m, y2=y2*m, color=color or self.color)
 
         return self
 
@@ -351,3 +401,56 @@ class LaserColor(object):
     FUCHSIA = 0x5
     CYAN = 0x6
     WHITE = 0x7
+
+
+class LaserFont(object):
+    def __init__(self, file):
+        self.letters = {}
+        self.name = file.split('.')[0]
+        zipdata = open(file, 'rb').read()
+        zipdata = zipdata.decode('zlib').strip()
+        header = True
+
+        for data in zipdata.split('\0'):
+            if header:
+                self.spacing = struct.unpack('B', data[0])[0]
+                header = False
+            else:
+                if len(data) == 0:
+                    continue
+                char = chr(struct.unpack('B', data[0])[0])
+                coordlist = []
+                for val in data[1:]:
+                    coordlist.append(struct.unpack('B', val)[0])
+                self.letters[char] = coordlist
+
+    def render(self, game, text, x, y, color=LaserColor.LIME, coeff=1):
+        offset_x = x
+        offset_y = y
+
+        if coeff < 1:
+            coeff = 1
+
+        if coeff == 1:
+            scaledletters = self.letters
+        else:
+            scaledletters = {}
+            for char in self.letters.keys():
+                scaledvals = []
+                for val in self.letters[char]:
+                    scaledvals.append(val * coeff)
+                scaledletters[char] = scaledvals
+
+        for char in text:
+            tmp_offset = 0
+            for line in grouper(4, scaledletters[char]):
+                game.addLine(line[0] + offset_x, line[1] + offset_y, line[2] + offset_x, line[3] + offset_y, color)
+                tmp_offset = max(tmp_offset, max(line[0], line[2]))
+            offset_x += tmp_offset + self.spacing * coeff
+
+
+if __name__ == '__main__':
+    font = LaserFont('lcd.elfc')
+    print('[EdgeLaser] loaded font %s' % font.name)
+    print('[EdgeLaser] font spacing: %s' % font.spacing)
+    print('[EdgeLaser] font contains %s chars' % len(font.letters))
