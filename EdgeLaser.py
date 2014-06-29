@@ -338,9 +338,6 @@ class LaserGame(object):
         #make sure coordinates are in the correct range
         x1, y1, x2, y2 = self.liangbarsky(x1, y1, x2, y2)
 
-        # data = LinePacket.build(Container(gameid=self.gameid, x1=x1, y1=y1, x2=x2, y2=y2, color=color or self.color))
-
-        # self.sendCmd(data)
         if x1 is not None:
             self.sendPacket(LinePacket, gameid=self.gameid, x1=x1*m, y1=y1*m, x2=x2*m, y2=y2*m, color=color or self.color)
 
@@ -350,10 +347,6 @@ class LaserGame(object):
     def addCircle(self, x, y, dim, color = None):
         m = self.multiplicator
 
-        # data = CirclePacket.build(Container(gameid=self.gameid, x=x, y=y, diam=dim, color=color or self.color))
-
-        # self.sendCmd(data)
-
         self.sendPacket(CirclePacket, gameid=self.gameid, x=x*m, y=y*m, diam=dim*m, color=color or self.color)
 
         return self
@@ -362,29 +355,17 @@ class LaserGame(object):
     def addRectangle(self, x1, y1, x2, y2, color = None):
         m = self.multiplicator
 
-        # data = RectPacket.build(Container(gameid=self.gameid, x1=x1, y1=y1, x2=x2, y2=y2, color=color or self.color))
-
-        # self.sendCmd(data)
-
         self.sendPacket(RectPacket, gameid=self.gameid, x1=x1*m, y1=y1*m, x2=x2*m, y2=y2*m, color=color or self.color)
 
         return self
 
     def refresh(self):
 
-        # data = RefreshPacket.build(Container(gameid=self.gameid))
-
-        # self.sendCmd(data)
-
         self.sendPacket(RefreshPacket, gameid=self.gameid)
 
         return self
 
     def pause(self):
-
-        # data = PausePacket.build(Container(gameid=self.gameid))
-
-        # self.sendCmd(data)
 
         self.sendPacket(PausePacket, gameid=self.gameid)
 
