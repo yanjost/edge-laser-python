@@ -97,7 +97,7 @@ class Vector2D(object):
 
 
 class GameObject(object):
-    def __init__(self,ident,x,y,angle):
+    def __init__(self,ident,x,y,angle,color=EdgeLaser.LaserColor.LIME):
         self.x=x
         self.y=y
         self.angle=Angle(angle)
@@ -105,13 +105,14 @@ class GameObject(object):
         self.current_clone=None
         self.ident=ident
         self.polygon=[]
+        self.color=color
         game_objects.append(self)
 
     def unclone(self):
         game_objects.remove(self.current_clone)
         self.current_clone.clone_of = None
         self.current_clone = None
-        print("Uncloned {}".format(self.ident))
+        # print("Uncloned {}".format(self.ident))
 
     def clone(self):
         if self.current_clone is None :
@@ -120,7 +121,7 @@ class GameObject(object):
             cp.clone_of = self
             self.current_clone = cp
 
-            print("Cloned {}".format(self.ident))
+            # print("Cloned {}".format(self.ident))
 
         return self.current_clone
 
@@ -155,6 +156,8 @@ def determinant(vec1,vec2):
 
 def lines_intersect(a,b,c,d):
     det=determinant(b-a,c-d)
+    if det == 0 :
+        return None
     t=determinant(c-a,c-d)/float(det)
     u=determinant(b-a,c-a)/float(det)
 
@@ -171,28 +174,19 @@ class Player(GameObject):
         self.booster = False
         self.polygon=[]
 
-        # print("Angle={}".format(self.angle.value))
-
     def draw(self, game):
         p1=(0,-self.width/5)
-        p2=(self.width,0)
+        p2=(self.width/2,0)
         p3=(0,self.width/5)
 
         p1=apply_rot(self.angle.value,*p1)
         p2=apply_rot(self.angle.value,*p2)
         p3=apply_rot(self.angle.value,*p3)
 
-        # print(p1)
-
         p1=apply_trans(self,*p1)
         p2=apply_trans(self,*p2)
         p3=apply_trans(self,*p3)
 
-        # game.addLine(p1[0],p1[1],p2[0],p2[1])
-        # game.addLine(p2[0],p2[1],p3[0],p3[1])
-        # game.addLine(p3[0],p3[1],p1[0],p1[1])
-        # game.addLine(*p2,*p3)
-        # game.addLine(*p3,*p1)
         self.polygon=[p1,p2,p3]
 
     def intersects(self,poly):
@@ -226,17 +220,15 @@ while game.isStopped():
     time.sleep(0.5)
 
 
-player1 = Player("PLAYER1",500,500,math.pi/2)
-# player1.x=500
-# player1.y=500
-# player1.angle=math.pi/2
+player1 = Player("PLAYER1",300,500,math.pi/2,color=EdgeLaser.LaserColor.LIME)
+player2 = Player("PLAYER2",600,500,math.pi/2,color=EdgeLaser.LaserColor.RED)
 
 dangle=0.1
 
 BORDER_LEFT=[(0.0,0.0),(0.0, SPACE_Y)]
 BORDER_RIGHT=[(SPACE_X,0.0),(SPACE_X, SPACE_Y)]
 BORDER_BOTTOM=[(0.0,0.0),(SPACE_X, 0.0)]
-BORDER_UP=[(0.0,SPACE_Y),(SPACE_X, SPACE_Y)]
+BORDER_TOP=[(0.0,SPACE_Y),(SPACE_X, SPACE_Y)]
 
 def poly_points_closed(points):
     i=0
@@ -248,22 +240,8 @@ def poly_points_closed(points):
     yield points[-1],points[0]
 
 def draw_poly(game, game_obj):
-    points = game_obj.polygon
-
-    # print(points)
-    #
-    # i=0
-    #
-    # while i < len(points) - 1:
-    #     game.addLine(points[i][0],points[i][1],points[i+1][0],points[i+1][1])
-    #     i+=1
-    #
-    # i=points[-1]
-    # j=points[0]
-    # game.addLine(i[0],i[1],j[0],j[1])
-
     for pt1,pt2 in poly_points_closed(game_obj.polygon):
-        game.addLine(pt1[0],pt1[1],pt2[0],pt2[1])
+        game.addLine(pt1[0],pt1[1],pt2[0],pt2[1], game_obj.color)
 
 while not game.isStopped():
 
@@ -271,54 +249,60 @@ while not game.isStopped():
 
     game.receiveServerCommands()
 
-    # for cmd in commands:
-
     if game.player1_keys:
-        if game.player1_keys.yp  :
-            player1.y-=5
         if game.player1_keys.xn :
-            # player1.x-=5
             player1.angle.add(-dangle)
-        if game.player1_keys.yn :
-            player1.y+=5
-        if game.player1_keys.xp :
-            # player1.x+=5
+        elif game.player1_keys.xp :
             player1.angle.add(dangle)
 
         player1.booster = game.player1_keys.a
 
-    # print(player1.angle)
+    if game.player2_keys:
+        if game.player2_keys.xn :
+            player2.angle.add(-dangle)
+        elif game.player2_keys.xp :
+            player2.angle.add(dangle)
 
-    player1.apply_movement()
+        player2.booster = game.player2_keys.a
+
+    for player in [player1, player2] :
+        player.apply_movement()
 
     for game_obj in game_objects:
         game_obj.draw(game)
 
+    no_clone_objects = [obj for obj in game_objects if not obj.is_clone()]
 
-    if player1.intersects(BORDER_RIGHT):
-        # print("DEAD")
-        the_clone = player1.clone()
-        the_clone.x = player1.x - SPACE_X
-        # the_clone.y = player1.y + player1.y*math.sin(player1.angle.value)
-        the_clone.y = player1.y
+    for game_obj in no_clone_objects:
 
+        if game_obj.intersects(BORDER_RIGHT):
+            the_clone = game_obj.clone()
+            the_clone.x = game_obj.x - SPACE_X
+            the_clone.y = game_obj.y
 
-    if not player1.is_visible() :
-        player1.x = player1.current_clone.x
-        player1.y = player1.current_clone.y
-        player1.unclone()
+        elif game_obj.intersects(BORDER_LEFT):
+            the_clone = game_obj.clone()
+            the_clone.x = game_obj.x + SPACE_X
+            the_clone.y = game_obj.y
+
+        elif game_obj.intersects(BORDER_TOP):
+            the_clone = game_obj.clone()
+            the_clone.x = game_obj.x
+            the_clone.y = game_obj.y - SPACE_Y
+
+        elif game_obj.intersects(BORDER_BOTTOM):
+            the_clone = game_obj.clone()
+            the_clone.x = game_obj.x
+            the_clone.y = game_obj.y + SPACE_Y
+
+        if not game_obj.is_visible() :
+            game_obj.x = game_obj.current_clone.x
+            game_obj.y = game_obj.current_clone.y
+            game_obj.unclone()
 
     for game_obj in game_objects:
-        # game_obj.draw(game)
         draw_poly(game, game_obj)
 
-    # player1
-
-    # draw_poly(game, player1)
-
     game.refresh()
-
-    # time.sleep(0.05)
-    # time.sleep(0.5)
 
     game.endFrame()
