@@ -383,6 +383,15 @@ class LaserGame(object):
     def addRectangle(self, x1, y1, x2, y2, color = None):
         m = self.multiplicator
 
+        # if completely outside, do nothing
+        if ((x1 < 0) and (x2 < 0)) or ((y1 < 0) and (y2 < 0)) or \
+              ((x1 > self.resolution - 1) and (x2 > self.resolution -1)) or \
+              ((y1 > self.resolution - 1) and (y2 > self.resolution - 1)):
+            return self
+
+        # clip the rectangle if needed
+        (x1, y1, x2, y2) = tuple(map(lambda i: min(max(i, 0), self.resolution - 1), [x1, y1, x2, y2]))
+
         self.sendPacket(RectPacket, gameid=self.gameid, x1=x1*m, y1=y1*m, x2=x2*m, y2=y2*m, color=color or self.color)
 
         return self
