@@ -1,4 +1,6 @@
 import copy
+import datetime
+import random
 import EdgeLaser
 import time
 import math
@@ -12,7 +14,8 @@ game.setResolution(1000).setDefaultColor(EdgeLaser.LaserColor.LIME)
 
 game.setFrameRate(20)
 
-
+# global game objects list
+game_objects = None
 
 class Angle(object):
     def __init__(self, value):
@@ -45,6 +48,14 @@ class Angle(object):
 
 
 class Vector(object):
+    @staticmethod
+    def from_pt(x1,y1,x2,y2):
+        deltaY = y2 - y1
+        deltaX = x2 - x1
+        angle=math.atan2(deltaY, deltaX)
+        value=math.sqrt(deltaX**2+deltaY**2)
+        return Vector(angle, value)
+
     def __init__(self, angle,value):
         self.angle=Angle(angle)
         self.value=value
@@ -101,13 +112,15 @@ class GameObject(object):
         self.polygon=[]
         self.color=color
         self.movement_vector=Vector(self.angle,0.0)
+        self.display=True
         game_objects.append(self)
 
     def on_unclone(self):
         pass
 
     def unclone(self):
-        game_objects.remove(self.current_clone)
+        if game_objects.count(self.current_clone):
+            game_objects.remove(self.current_clone)
         self.current_clone.clone_of = None
         self.current_clone = None
         self.on_unclone()
@@ -228,7 +241,12 @@ class Fire(GameObject):
     def collide(self, other):
         if isinstance(other, Player):
             other.die()
-            self.destroy()
+        elif isinstance(other, Asteroid):
+            other.destroy()
+        elif isinstance(other, Fire):
+            other.destroy()
+        self.destroy()
+
 
     def destroy(self):
         self.player.current_fire=None
@@ -272,7 +290,8 @@ class Player(GameObject):
             if self.width > 0:
                 self.width-=3
             else:
-                self.status=STATUS_ALIVE
+                # self.status=STATUS_ALIVE
+                self.destroy()
 
         p1=(0,-self.width/5)
         p2=(self.width/2,0)
@@ -327,7 +346,134 @@ def draw_poly(game, game_obj):
     for pt1,pt2 in poly_points_closed(game_obj.polygon):
         game.addLine(pt1[0],pt1[1],pt2[0],pt2[1], game_obj.color)
 
-game_objects = None
+class Asteroid(GameObject):
+    START_SPEED = 2.0
+
+    def __init__(self,ident,*args,**kwargs):
+        GameObject.__init__(self,ident,*args,**kwargs)
+        self.width=300
+        self.speed_vector=Vector(self.angle,0.0)
+        self.polygon=[]
+        self.moment=0.0
+
+    def die(self):
+        self.status=STATUS_DYING
+        self.stop()
+        self.destroy()
+
+    def draw(self, game):
+        p1=(0,-self.width/5)
+        p2=(self.width/2,0)
+        p3=(0,self.width/5)
+        p4=(-self.width/3,self.width/3)
+
+        p1=apply_rot(self.angle.value,*p1)
+        p2=apply_rot(self.angle.value,*p2)
+        p3=apply_rot(self.angle.value,*p3)
+        p4=apply_rot(self.angle.value,*p4)
+
+        p1=apply_trans(self,*p1)
+        p2=apply_trans(self,*p2)
+        p3=apply_trans(self,*p3)
+        p4=apply_trans(self,*p4)
+
+        self.polygon=[p1,p2,p3,p4]
+
+    def collide(self, other):
+        if isinstance(other, Player):
+            self.die()
+            other.die()
+        elif isinstance(other, Asteroid):
+            vself=Vector.from_pt(self.x,self.y,other.x,other.y)
+            vother=Vector.from_pt(other.x,other.y, self.x, self.y)
+
+            mvt_before = copy.copy(self.movement_vector)
+
+            self.movement_vector=self.movement_vector+other.movement_vector+vother
+            other.movement_vector=other.movement_vector+mvt_before+vself
+
+            self.movement_vector.value*=0.15
+            other.movement_vector.value*=0.15
+
+            self.movement_vector.value=min(self.movement_vector.value,Asteroid.START_SPEED*2)
+            other.movement_vector.value=min(other.movement_vector.value,Asteroid.START_SPEED*2)
+
+
+    def apply_movement(self):
+        self.angle+=self.moment
+        GameObject.apply_movement(self)
+
+
+
+class AsteroidManager(object):
+    MAX_SIZE = 250
+    MIN_SIZE = 30
+    CREATION_RATE_PER_S=0.1
+    MIN_INTERVAL=5
+
+    def __init__(self):
+        print("AsteroidManager")
+        self.start_time = datetime.datetime.now()
+        self.ast_count=0
+        self.last_creation=None
+
+    def get_game_duration(self):
+        return (datetime.datetime.now() - self.start_time).total_seconds()
+
+    def get_expected_count(self):
+        return int(self.get_game_duration()*AsteroidManager.CREATION_RATE_PER_S)
+
+    def manage_asteroids(self, game_objects):
+        # print("manage")
+        current_asteroids = [ gobj for gobj in game_objects if isinstance(gobj, Asteroid) ]
+
+        if len(current_asteroids) < self.get_expected_count():
+            # print("Want create")
+            if self.last_creation:
+                if (datetime.datetime.now()-self.last_creation).total_seconds() > AsteroidManager.MIN_INTERVAL:
+                    self.create_asteroid(game_objects)
+            else:
+                self.create_asteroid(game_objects)
+
+    def create_asteroid(self, game_objects):
+
+        self.ast_count+=1
+
+        rand_x = random.randint(0,SPACE_X)
+        rand_y = random.randint(0,SPACE_Y)
+        rand_angle = random.random()*2*math.pi
+        width = random.randint(AsteroidManager.MIN_SIZE,AsteroidManager.MAX_SIZE)
+
+        ast = Asteroid("ASTEROID_{}".format(self.ast_count),rand_x,rand_y,rand_angle)
+        ast.width=width*4
+
+        ast.draw(None)
+
+        for go in game_objects:
+            if go is not ast and go.is_colliding(ast):
+                ast.destroy()
+                return
+
+        ast.width=width
+
+        ast.movement_vector.angle.value=random.random()*2*math.pi
+        ast.movement_vector.value=Asteroid.START_SPEED
+
+        mmt=random.random()*0.01
+
+        if random.random()>0.5 :
+            mmt=-mmt
+
+        ast.moment=mmt
+
+        print("Created {}".format(ast.ident))
+
+        self.last_creation=datetime.datetime.now()
+
+
+
+
+
 
 while True:
     game_objects = []
@@ -336,8 +482,10 @@ while True:
         game.receiveServerCommands()
         time.sleep(0.5)
 
+    game_start_time = datetime.datetime.now()
 
-    player1 = Player("PLAYER1",300,500,math.pi/2,color=EdgeLaser.LaserColor.LIME)
+
+    player1 = Player("PLAYER1",300,500,math.pi/2,color=EdgeLaser.LaserColor.BLUE)
     player2 = Player("PLAYER2",600,500,math.pi/2,color=EdgeLaser.LaserColor.RED)
 
     dangle=0.1
@@ -347,9 +495,12 @@ while True:
     BORDER_BOTTOM=[(0.0,0.0),(SPACE_X, 0.0)]
     BORDER_TOP=[(0.0,SPACE_Y),(SPACE_X, SPACE_Y)]
 
+    am=AsteroidManager()
 
 
     while not game.isStopped():
+
+        game_duration = datetime.datetime.now() - game_start_time
 
         game.newFrame()
 
@@ -375,6 +526,8 @@ while True:
 
         for player in [player1, player2] :
             player.do_fire()
+
+        am.manage_asteroids(game_objects)
 
         for game_obj in game_objects:
             game_obj.apply_movement()
