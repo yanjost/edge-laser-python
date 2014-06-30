@@ -103,10 +103,14 @@ class GameObject(object):
         self.movement_vector=Vector(self.angle,0.0)
         game_objects.append(self)
 
+    def on_unclone(self):
+        pass
+
     def unclone(self):
         game_objects.remove(self.current_clone)
         self.current_clone.clone_of = None
         self.current_clone = None
+        self.on_unclone()
         # print("Uncloned {}".format(self.ident))
 
     def clone(self):
@@ -171,6 +175,9 @@ class GameObject(object):
     def destroy(self):
         game_objects.remove(self)
 
+    def on_screen_wrap(self):
+        pass
+
 
 def apply_rot(angle,x,y):
     return x*math.cos(angle)-y*math.sin(angle) , x*math.sin(angle)+y*math.cos(angle)
@@ -197,6 +204,7 @@ def lines_intersect(a,b,c,d):
 class Fire(GameObject):
     def __init__(self,ident,player,*args,**kwargs):
         GameObject.__init__(self,ident,*args,**kwargs)
+        self.wrap_count = 0
         self.width=10
         self.player=player
         self.movement_vector=Vector(player.angle,player.movement_vector.value+5.0)
@@ -225,6 +233,15 @@ class Fire(GameObject):
     def destroy(self):
         self.player.current_fire=None
         GameObject.destroy(self)
+
+    def on_unclone(self):
+        self.wrap_count+=1
+        print(self.wrap_count)
+
+        if self.wrap_count>2:
+            self.destroy()
+            return False
+        return True
 
 STATUS_ALIVE=1
 STATUS_DYING=2
@@ -284,7 +301,7 @@ class Player(GameObject):
         if self.fire and not self.current_fire :
             x = self.x + self.width*math.cos(self.angle.value)
             y = self.y + self.width*math.sin(self.angle.value)
-            self.current_fire = Fire("FIRE_P1",self,x,y,self.angle.value,color=EdgeLaser.LaserColor.YELLOW)
+            self.current_fire = Fire("FIRE_"+self.ident,self,x,y,self.angle.value,color=EdgeLaser.LaserColor.YELLOW)
 
     def collide(self, other):
         if isinstance(other, Player):
@@ -379,21 +396,25 @@ while True:
         for game_obj in no_clone_objects:
 
             if game_obj.intersects(BORDER_RIGHT):
+                game_obj.on_screen_wrap()
                 the_clone = game_obj.clone()
                 the_clone.x = game_obj.x - SPACE_X
                 the_clone.y = game_obj.y
 
             elif game_obj.intersects(BORDER_LEFT):
+                game_obj.on_screen_wrap()
                 the_clone = game_obj.clone()
                 the_clone.x = game_obj.x + SPACE_X
                 the_clone.y = game_obj.y
 
             elif game_obj.intersects(BORDER_TOP):
+                game_obj.on_screen_wrap()
                 the_clone = game_obj.clone()
                 the_clone.x = game_obj.x
                 the_clone.y = game_obj.y - SPACE_Y
 
             elif game_obj.intersects(BORDER_BOTTOM):
+                game_obj.on_screen_wrap()
                 the_clone = game_obj.clone()
                 the_clone.x = game_obj.x
                 the_clone.y = game_obj.y + SPACE_Y
