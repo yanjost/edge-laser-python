@@ -300,7 +300,10 @@ class LaserGame(object):
         self.last_frame_start = datetime.datetime.now()
 
     def endFrame(self):
-        time.sleep(1.0/self.fps-(datetime.datetime.now()-self.last_frame_start).total_seconds())
+        try:
+            time.sleep(1.0/self.fps-(datetime.datetime.now()-self.last_frame_start).total_seconds())
+        except:
+            pass
 
     def isStopped(self):
         return self.stopped
