@@ -11,6 +11,7 @@ from construct import macros
 
 import datetime
 
+# HOST="192.168.1.73"
 HOST="localhost"
 PORT=4242
 
@@ -25,6 +26,8 @@ def grouper(n, iterable):
             return
         yield chunk
 
+def str_to_ord(s):
+    return " ".join(str(ord(c)) for c in s)
 
 class Socket(object):
     def __init__(self, socket):
@@ -37,13 +40,20 @@ class Socket(object):
 
     def getFromSocket(self):
         tmp=None
+        data=None
         try :
             data, address = self.sock.recvfrom(65535, socket.MSG_DONTWAIT)
             self.internalbuffer+=data
         except socket.error as exc:
             if exc.errno == 35:
                 pass
-            #print "Got {} from socket".format(data);
+
+        # if data:
+        #     print("Got '{}' ({}) from socket, internal buffer '{}' ({})".format(data
+        #                                                                         , str_to_ord(data)
+        #                                                                         , self.internalbuffer
+        #                                                                         , str_to_ord(self.internalbuffer))
+        #     )
 
     def read(self, byteCount):
         buffer=''
@@ -53,6 +63,7 @@ class Socket(object):
 
         buffer = self.internalbuffer[0:byteCount]
         self.internalbuffer=self.internalbuffer[byteCount:]
+        # print("Buffer {}".format(self.internalbuffer))
         return buffer
 
     def peek(self, byteCount):
@@ -85,8 +96,11 @@ class PlayerKeyCommand(AbstractCommand):
 
 
     def parse(self, socket, game):
+        # print("Try to parse PlayerKey")
         if not self.parse_type(socket.peek(1)) == 'I' :
             return False
+
+        # print("Parsed PlayerKey")
 
         socket.read(1)
 
@@ -142,6 +156,7 @@ class GoCommand(AbstractCommand):
         if not self.parse_type(socket.peek(1)) == 'G' :
             return False
 
+        # socket.read(2)
         socket.read(1)
 
         game.stopped = False
@@ -154,6 +169,7 @@ class StopCommand(AbstractCommand):
         if not self.parse_type(socket.peek(1)) == 'S' :
             return False
 
+        # socket.read(2)
         socket.read(1)
 
         game.stopped = True
