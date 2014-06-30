@@ -5,7 +5,7 @@ import EdgeLaser
 import time
 import math
 
-game = EdgeLaser.LaserGame('Steroid')
+game = EdgeLaser.LaserGame('EdgeSteroid')
 
 SPACE_X = 1000
 SPACE_Y = 1000
