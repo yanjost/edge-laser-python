@@ -436,9 +436,12 @@ class LaserFont(object):
 
         for char in text:
             tmp_offset = 0
-            for line in grouper(4, scaledletters[char]):
-                game.addLine(line[0] + offset_x, line[1] + offset_y, line[2] + offset_x, line[3] + offset_y, color)
-                tmp_offset = max(tmp_offset, max(line[0], line[2]))
+            if char == ' ':
+                tmp_offset = 8 * coeff
+            else:
+                for line in grouper(4, scaledletters[char]):
+                    game.addLine(line[0] + offset_x, line[1] + offset_y, line[2] + offset_x, line[3] + offset_y, color)
+                    tmp_offset = max(tmp_offset, max(line[0], line[2]))
             offset_x += tmp_offset + self.spacing * coeff
 
 
