@@ -201,6 +201,25 @@ class GameObject(object):
     def on_screen_wrap(self):
         pass
 
+    def collide_transfer_energy(self,other):
+        vself=Vector.from_pt(self.x,self.y,other.x,other.y)
+        vother=Vector.from_pt(other.x,other.y, self.x, self.y)
+
+        mvt_before = copy.copy(self.movement_vector)
+
+        self.movement_vector=self.movement_vector+other.movement_vector+vother
+        other.movement_vector=other.movement_vector+mvt_before+vself
+
+        if hasattr(self,"width") and hasattr(other,"width"):
+            self.movement_vector.value*=other.width/float(self.width+other.width)
+            other.movement_vector.value*=self.width/float(self.width+other.width)
+
+        self.movement_vector.value*=0.10
+        other.movement_vector.value*=0.10
+
+        self.movement_vector.value=min(self.movement_vector.value,Asteroid.START_SPEED*2)
+        other.movement_vector.value=min(other.movement_vector.value,Asteroid.START_SPEED*2)
+
 
 def apply_rot(angle,x,y):
     return x*math.cos(angle)-y*math.sin(angle) , x*math.sin(angle)+y*math.cos(angle)
@@ -276,7 +295,7 @@ class Fire(GameObject):
 class Player(GameObject):
     def __init__(self,ident,*args,**kwargs):
         GameObject.__init__(self,ident,*args,**kwargs)
-        self.width=100
+        self.width=50
         self.speed_vector=Vector(self.angle,0.0)
         self.booster = False
         self.fire = False
@@ -304,9 +323,9 @@ class Player(GameObject):
                 # self.status=STATUS_ALIVE
                 self.destroy()
 
-        p1=(0,-self.width/5)
-        p2=(self.width/2,0)
-        p3=(0,self.width/5)
+        p1=(0,-self.width/3)
+        p2=(self.width,0)
+        p3=(0,self.width/3)
 
         p1=apply_rot(self.angle.value,*p1)
         p2=apply_rot(self.angle.value,*p2)
@@ -366,6 +385,8 @@ class Asteroid(GameObject):
         self.speed_vector=Vector(self.angle,0.0)
         self.polygon=[]
         self.moment=0.0
+        self.rnd_factor1=random.random()
+        self.rnd_factor2=random.random()
 
     def get_speed_limit(self):
         return self.width/SPEED_LIMIT_BY_SIZE
@@ -376,10 +397,10 @@ class Asteroid(GameObject):
         self.destroy()
 
     def draw(self, game):
-        p1=(0,-self.width/5)
+        p1=(0,-int(self.width/3*self.rnd_factor2))
         p2=(self.width/2,0)
         p3=(0,self.width/5)
-        p4=(-self.width/3,self.width/3)
+        p4=(-int(self.width/2*self.rnd_factor1),self.width/4)
 
         p1=apply_rot(self.angle.value,*p1)
         p2=apply_rot(self.angle.value,*p2)
@@ -395,25 +416,10 @@ class Asteroid(GameObject):
 
     def collide(self, other):
         if isinstance(other, Player):
-            self.die()
+            self.collide_transfer_energy(other)
             other.die()
         elif isinstance(other, Asteroid):
-            vself=Vector.from_pt(self.x,self.y,other.x,other.y)
-            vother=Vector.from_pt(other.x,other.y, self.x, self.y)
-
-            mvt_before = copy.copy(self.movement_vector)
-
-            self.movement_vector=self.movement_vector+other.movement_vector+vother
-            other.movement_vector=other.movement_vector+mvt_before+vself
-
-            self.movement_vector.value*=other.width/float(self.width+other.width)
-            other.movement_vector.value*=self.width/float(self.width+other.width)
-
-            self.movement_vector.value*=0.10
-            other.movement_vector.value*=0.10
-
-            self.movement_vector.value=min(self.movement_vector.value,Asteroid.START_SPEED*2)
-            other.movement_vector.value=min(other.movement_vector.value,Asteroid.START_SPEED*2)
+            self.collide_transfer_energy(other)
 
 
     def apply_movement(self):
