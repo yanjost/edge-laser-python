@@ -9,6 +9,10 @@ game = EdgeLaser.LaserGame('EdgeSteroid')
 
 SPACE_X = 1000
 SPACE_Y = 1000
+STATUS_ALIVE=1
+STATUS_DYING=2
+STATUS_RESPAWN=3
+SPEED_LIMIT_BY_SIZE=5
 
 game.setResolution(1000).setDefaultColor(EdgeLaser.LaserColor.LIME)
 
@@ -115,6 +119,9 @@ class GameObject(object):
         self.display=True
         game_objects.append(self)
 
+    def get_speed_limit(self):
+        return None
+
     def on_unclone(self):
         pass
 
@@ -180,6 +187,9 @@ class GameObject(object):
         return self.intersects(other.polygon)
 
     def apply_movement(self):
+        l=self.get_speed_limit()
+        if l:
+            self.movement_vector.value=min(self.movement_vector.value,l)
         self.x,self.y=self.movement_vector.apply(self.x,self.y)
 
     def collide(self, other):
@@ -261,9 +271,7 @@ class Fire(GameObject):
             return False
         return True
 
-STATUS_ALIVE=1
-STATUS_DYING=2
-STATUS_RESPAWN=3
+
 
 class Player(GameObject):
     def __init__(self,ident,*args,**kwargs):
@@ -280,6 +288,9 @@ class Player(GameObject):
 
     # def get_poly(self):
     #     if
+
+    def get_speed_limit(self):
+        return self.width/SPEED_LIMIT_BY_SIZE
 
     def die(self):
         self.status=STATUS_DYING
@@ -355,6 +366,9 @@ class Asteroid(GameObject):
         self.speed_vector=Vector(self.angle,0.0)
         self.polygon=[]
         self.moment=0.0
+
+    def get_speed_limit(self):
+        return self.width/SPEED_LIMIT_BY_SIZE
 
     def die(self):
         self.status=STATUS_DYING
