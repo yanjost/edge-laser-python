@@ -392,8 +392,11 @@ class Asteroid(GameObject):
             self.movement_vector=self.movement_vector+other.movement_vector+vother
             other.movement_vector=other.movement_vector+mvt_before+vself
 
-            self.movement_vector.value*=0.15
-            other.movement_vector.value*=0.15
+            self.movement_vector.value*=other.width/float(self.width+other.width)
+            other.movement_vector.value*=self.width/float(self.width+other.width)
+
+            self.movement_vector.value*=0.10
+            other.movement_vector.value*=0.10
 
             self.movement_vector.value=min(self.movement_vector.value,Asteroid.START_SPEED*2)
             other.movement_vector.value=min(other.movement_vector.value,Asteroid.START_SPEED*2)
@@ -410,6 +413,7 @@ class AsteroidManager(object):
     MIN_SIZE = 30
     CREATION_RATE_PER_S=0.1
     MIN_INTERVAL=5
+    MAX_ASTEROIDS=10
 
     def __init__(self):
         print("AsteroidManager")
@@ -427,7 +431,9 @@ class AsteroidManager(object):
         # print("manage")
         current_asteroids = [ gobj for gobj in game_objects if isinstance(gobj, Asteroid) ]
 
-        if len(current_asteroids) < self.get_expected_count():
+        count=len(current_asteroids)
+
+        if count < self.get_expected_count() and count < self.MAX_ASTEROIDS :
             # print("Want create")
             if self.last_creation:
                 if (datetime.datetime.now()-self.last_creation).total_seconds() > AsteroidManager.MIN_INTERVAL:
