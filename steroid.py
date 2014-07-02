@@ -11,8 +11,10 @@ SPACE_X = 1000
 SPACE_Y = 1000
 STATUS_ALIVE=1
 STATUS_DYING=2
-STATUS_RESPAWN=3
+STATUS_DEAD=3
+STATUS_RESPAWN=4
 SPEED_LIMIT_BY_SIZE=5
+GAME_DURATION = 120
 
 game.setResolution(1000).setDefaultColor(EdgeLaser.LaserColor.LIME)
 
@@ -20,6 +22,7 @@ game.setFrameRate(20)
 
 # global game objects list
 game_objects = None
+score_manager = None
 
 class Angle(object):
     def __init__(self, value):
@@ -270,8 +273,10 @@ class Fire(GameObject):
     def collide(self, other):
         if isinstance(other, Player):
             other.die()
+            score_manager.on_kill(self.player,other)
         elif isinstance(other, Asteroid):
             other.destroy()
+            score_manager.on_kill(self.player,other)
         elif isinstance(other, Fire):
             other.destroy()
         self.destroy()
@@ -295,6 +300,7 @@ class Fire(GameObject):
 class Player(GameObject):
     def __init__(self,ident,*args,**kwargs):
         GameObject.__init__(self,ident,*args,**kwargs)
+        self.score = 0
         self.width=50
         self.speed_vector=Vector(self.angle,0.0)
         self.booster = False
@@ -321,6 +327,7 @@ class Player(GameObject):
                 self.width-=3
             else:
                 # self.status=STATUS_ALIVE
+                self.status=STATUS_DEAD
                 self.destroy()
 
         p1=(0,-self.width/3)
@@ -497,8 +504,24 @@ class AsteroidManager(object):
         self.last_creation=datetime.datetime.now()
 
 
+class ScoreManager(object):
 
+    def __init__(self):
+        self.start_time=datetime.datetime.now()
 
+    def get_remaining_time(self):
+        return (datetime.datetime.now() - self.start_time).total_seconds()
+
+    def on_kill(self, killer, dead):
+        if isinstance(dead, Player):
+            if killer is dead :
+                killer.score-=100
+            else:
+                killer.score += int(self.get_remaining_time()) * 1000
+        elif isinstance(dead, Asteroid):
+            killer.score += (AsteroidManager.MAX_SIZE - dead.width + 1)*10
+
+        print("{}: {}".format(killer.ident, killer.score))
 
 
 while True:
@@ -522,11 +545,14 @@ while True:
     BORDER_TOP=[(0.0,SPACE_Y),(SPACE_X, SPACE_Y)]
 
     am=AsteroidManager()
+    score_manager = ScoreManager()
 
 
     while not game.isStopped():
 
-        game_duration = datetime.datetime.now() - game_start_time
+        game_duration = (datetime.datetime.now() - game_start_time).total_seconds()
+
+        winner_bonus = (GAME_DURATION - game_duration) * 100
 
         game.newFrame()
 
@@ -609,3 +635,7 @@ while True:
         game.refresh()
 
         game.endFrame()
+
+        if player1.status==STATUS_DEAD or player2.status==STATUS_DEAD:
+            print("Player1: {} Player2: {}".format(player1.score, player2.score))
+            break
