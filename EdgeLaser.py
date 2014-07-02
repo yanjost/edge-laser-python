@@ -11,7 +11,7 @@ from construct import macros
 
 import datetime
 
-# HOST="192.168.1.73"
+# HOST="192.168.1.28"
 HOST="localhost"
 PORT=4242
 

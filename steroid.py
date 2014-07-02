@@ -18,7 +18,7 @@ GAME_DURATION = 120
 
 game.setResolution(1000).setDefaultColor(EdgeLaser.LaserColor.LIME)
 
-game.setFrameRate(20)
+game.setFrameRate(30)
 
 # global game objects list
 game_objects = None
@@ -311,7 +311,7 @@ class Player(GameObject):
     def __init__(self,ident,*args,**kwargs):
         GameObject.__init__(self,ident,*args,**kwargs)
         self.score = 0
-        self.width=50
+        self.width=70
         self.speed_vector=Vector(self.angle,0.0)
         self.booster = False
         self.fire = False
@@ -340,9 +340,9 @@ class Player(GameObject):
                 self.status=STATUS_DEAD
                 self.destroy()
 
-        p1=(0,-self.width/3)
+        p1=(0,-self.width/4)
         p2=(self.width,0)
-        p3=(0,self.width/3)
+        p3=(0,self.width/4)
 
         p1=apply_rot(self.angle.value,*p1)
         p2=apply_rot(self.angle.value,*p2)
@@ -446,8 +446,8 @@ class Asteroid(GameObject):
 
 
 class AsteroidManager(object):
-    MAX_SIZE = 250
-    MIN_SIZE = 30
+    MAX_SIZE = 300
+    MIN_SIZE = 100
     CREATION_RATE_PER_S=0.1
     MIN_INTERVAL=5
     MAX_ASTEROIDS=10
@@ -539,13 +539,13 @@ while True:
 
     while game.isStopped():
         game.receiveServerCommands()
-        time.sleep(0.5)
+        time.sleep(0.1)
 
     game_start_time = datetime.datetime.now()
 
 
-    player1 = Player("PLAYER1",300,500,math.pi/2,color=EdgeLaser.LaserColor.BLUE)
-    player2 = Player("PLAYER2",600,500,math.pi/2,color=EdgeLaser.LaserColor.RED)
+    player1 = Player("PLAYER1",300,500,math.pi/2,color=EdgeLaser.LaserColor.WHITE)
+    player2 = Player("PLAYER2",600,500,math.pi/2,color=EdgeLaser.LaserColor.CYAN)
 
     dangle=0.1
 
