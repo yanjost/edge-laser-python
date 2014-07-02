@@ -110,6 +110,7 @@ class Vector2D(object):
 
 class GameObject(object):
     def __init__(self,ident,x,y,angle,color=EdgeLaser.LaserColor.LIME):
+        self.time_limit = 0
         self.x=x
         self.y=y
         self.angle=Angle(angle)
@@ -120,7 +121,11 @@ class GameObject(object):
         self.color=color
         self.movement_vector=Vector(self.angle,0.0)
         self.display=True
+        self.creation_date=datetime.datetime.now()
         game_objects.append(self)
+
+    def get_age_in_seconds(self):
+        return (datetime.datetime.now()-self.creation_date).total_seconds()
 
     def get_speed_limit(self):
         return None
@@ -223,6 +228,10 @@ class GameObject(object):
         self.movement_vector.value=min(self.movement_vector.value,Asteroid.START_SPEED*2)
         other.movement_vector.value=min(other.movement_vector.value,Asteroid.START_SPEED*2)
 
+    def expire(self):
+        if self.time_limit and self.get_age_in_seconds() > self.time_limit :
+            self.destroy()
+
 
 def apply_rot(angle,x,y):
     return x*math.cos(angle)-y*math.sin(angle) , x*math.sin(angle)+y*math.cos(angle)
@@ -254,6 +263,7 @@ class Fire(GameObject):
         self.player=player
         self.movement_vector=Vector(player.angle,player.movement_vector.value+5.0)
         self.polygon=[]
+        self.time_limit=3.5
 
     def draw(self, game):
         p1=(0,-self.width/2)
@@ -631,6 +641,8 @@ while True:
 
         for game_obj in game_objects:
             draw_poly(game, game_obj)
+            assert isinstance(game_obj, GameObject)
+            game_obj.expire()
 
         game.refresh()
 
