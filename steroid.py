@@ -610,33 +610,42 @@ while True:
 
         for game_obj in no_clone_objects:
 
+            crossing = False
+
             if game_obj.intersects(BORDER_RIGHT):
                 game_obj.on_screen_wrap()
                 the_clone = game_obj.clone()
                 the_clone.x = game_obj.x - SPACE_X
                 the_clone.y = game_obj.y
+                crossing = True
 
             elif game_obj.intersects(BORDER_LEFT):
                 game_obj.on_screen_wrap()
                 the_clone = game_obj.clone()
                 the_clone.x = game_obj.x + SPACE_X
                 the_clone.y = game_obj.y
+                crossing = True
 
             elif game_obj.intersects(BORDER_TOP):
                 game_obj.on_screen_wrap()
                 the_clone = game_obj.clone()
                 the_clone.x = game_obj.x
                 the_clone.y = game_obj.y - SPACE_Y
+                crossing = True
 
             elif game_obj.intersects(BORDER_BOTTOM):
                 game_obj.on_screen_wrap()
                 the_clone = game_obj.clone()
                 the_clone.x = game_obj.x
                 the_clone.y = game_obj.y + SPACE_Y
+                crossing = True
 
             if not game_obj.is_visible() and game_obj.has_clone() :
                 game_obj.x = game_obj.current_clone.x
                 game_obj.y = game_obj.current_clone.y
+                game_obj.unclone()
+
+            if game_obj.is_visible() and game_obj.has_clone() and not crossing:
                 game_obj.unclone()
 
         for game_obj in game_objects:
