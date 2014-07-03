@@ -226,6 +226,12 @@ PausePacket = Struct("PausePacket",
     Magic("S"),
 )
 
+KinectPacket = Struct("KinectPacket",
+    # Magic("C"),
+    ULInt8("gameid"),
+    Magic("K"),
+)
+
 PlayerKeyPacket = Struct("PlayerKeyPacket",
     # Magic("I"),
     BitStruct("player2",
@@ -308,7 +314,8 @@ class LaserGame(object):
     def isStopped(self):
         return self.stopped
 
-
+    def useKinect(self):
+        self.sendPacket(KinectPacket)
 
     def receiveServerCommands(self):
         commands = []
