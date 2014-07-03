@@ -408,6 +408,7 @@ class LaserGame(object):
     def pause(self):
 
         self.sendPacket(PausePacket, gameid=self.gameid)
+        game.isStopped = True
 
         return self
 
