@@ -315,7 +315,7 @@ class LaserGame(object):
         return self.stopped
 
     def useKinect(self):
-        self.sendPacket(KinectPacket)
+        self.sendPacket(KinectPacket, gameid=self.gameid)
 
     def receiveServerCommands(self):
         commands = []
