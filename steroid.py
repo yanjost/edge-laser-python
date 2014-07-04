@@ -534,12 +534,49 @@ class ScoreManager(object):
         print("{}: {}".format(killer.ident, killer.score))
 
 
+def double_scroll(text1, text2):
+    font = EdgeLaser.LaserFont('lcd.elfc')
+    #
+    i=0
+
+    while i < 3000 :
+        game.newFrame()
+        font.render(game, text1, i-500, 500, coeff=20)
+        font.render(game, text2, 500-i, 700, coeff=20)
+
+        game.refresh()
+        game.endFrame()
+        i+=25
+
+def intro_screen():
+    double_scroll("EDGE","STEROID")
+
+
+def double_display(text1, text2):
+    font = EdgeLaser.LaserFont('lcd.elfc')
+    #
+    i=0
+
+    while not game.isStopped() and i < 3000:
+        game.newFrame()
+        font.render(game, text1, 1, 500, coeff=20, spacing_factor=3)
+        font.render(game, text2, 1, 700, coeff=20, spacing_factor=3)
+
+        game.refresh()
+        game.endFrame()
+        i+=25
+
+
 while True:
     game_objects = []
 
     while game.isStopped():
         game.receiveServerCommands()
         time.sleep(0.1)
+
+    # intro screen
+
+    intro_screen()
 
     game_start_time = datetime.datetime.now()
 
@@ -659,4 +696,16 @@ while True:
 
         if player1.status==STATUS_DEAD or player2.status==STATUS_DEAD:
             print("Player1: {} Player2: {}".format(player1.score, player2.score))
+
+            if player2.status==STATUS_DEAD and player1.status==STATUS_ALIVE :
+                double_display("P 1","WINS")
+            elif player1.status==STATUS_DEAD and player2.status==STATUS_ALIVE :
+                double_display("P 2","WINS")
+            else:
+                double_display("DRAW")
+
+            time.sleep(3)
+
             break
+
+    game.pause()
