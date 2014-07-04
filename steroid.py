@@ -332,7 +332,7 @@ class Player(GameObject):
 
     def die(self):
         self.status=STATUS_DYING
-        explode(self,10)
+        explode(self,3,True,3)
         self.stop()
 
     def draw(self, game):
@@ -397,11 +397,11 @@ def draw_poly(game, game_obj):
     for pt1,pt2 in poly_points_closed(game_obj.polygon):
         game.addLine(pt1[0],pt1[1],pt2[0],pt2[1], game_obj.color)
 
-def explode(obj, particle_count):
+def explode(obj, particle_count,growing=False,time_limit=3):
 
     for i in range(particle_count):
-        particle=Particle("PART",obj.x, obj.y, random.random()*2*math.pi, color=obj.color)
-        particle.time_limit=3
+        particle=Particle("PART",growing,obj.x, obj.y, random.random()*2*math.pi, color=obj.color)
+        particle.time_limit=time_limit
         particle.movement_vector.angle.value=random.random()*2*math.pi
         particle.movement_vector.value=random.randint(1,10)
         particle.draw(game)
@@ -410,7 +410,7 @@ def explode(obj, particle_count):
 class Particle(GameObject):
     START_SPEED = 2.0
 
-    def __init__(self,ident,*args,**kwargs):
+    def __init__(self,ident,growing=False,*args,**kwargs):
         GameObject.__init__(self,ident,*args,**kwargs)
         self.width=10
         self.speed_vector=Vector(self.angle,0.0)
@@ -418,11 +418,15 @@ class Particle(GameObject):
         self.moment=0.0
         self.rnd_factor1=random.random()
         self.rnd_factor2=random.random()
+        self.original_width=self.width
+        self.growing=growing
+        self.width=1
 
-    def get_speed_limit(self):
-        return self.width/SPEED_LIMIT_BY_SIZE
 
     def draw(self, game):
+        if self.growing:
+            self.width=self.get_age_in_seconds()*3
+
         p1=(0,-int(self.width/3*self.rnd_factor2))
         p2=(self.width/2,0)
         p3=(0,self.width/5)
@@ -626,6 +630,30 @@ def double_scroll(text1, text2):
 
 def intro_screen():
     double_scroll("EDGE","STEROID")
+
+    i=0
+
+    dummy=GameObject("INTRO",SPACE_X/2,400,0.0)
+
+    explode(dummy,10,True,5)
+
+    dummy.destroy()
+
+    exists_particle=True
+
+    while exists_particle and not game.isStopped():
+        game.newFrame()
+        for game_obj in game_objects:
+            game_obj.apply_movement()
+            game_obj.draw(game)
+            draw_poly(game,game_obj)
+            game_obj.expire()
+
+        game.refresh()
+        exists_particle = any(( isinstance(o, Particle) for o in game_objects))
+        game.endFrame()
+        i+=25
+
 
 
 def double_display(text1, text2):
