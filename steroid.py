@@ -194,6 +194,9 @@ class GameObject(object):
         assert len(other.polygon) > 0, "{} polygon is empty".format(other.ident)
         return self.intersects(other.polygon)
 
+    def distance(self, other):
+        return math.sqrt((self.x-other.x)**2 + (self.y-other.y)**2)
+
     def apply_movement(self):
         l=self.get_speed_limit()
         if l:
@@ -329,6 +332,7 @@ class Player(GameObject):
 
     def die(self):
         self.status=STATUS_DYING
+        explode(self,10)
         self.stop()
 
     def draw(self, game):
@@ -392,6 +396,54 @@ def poly_points_closed(points):
 def draw_poly(game, game_obj):
     for pt1,pt2 in poly_points_closed(game_obj.polygon):
         game.addLine(pt1[0],pt1[1],pt2[0],pt2[1], game_obj.color)
+
+def explode(obj, particle_count):
+
+    for i in range(particle_count):
+        particle=Particle("PART",obj.x, obj.y, random.random()*2*math.pi, color=obj.color)
+        particle.time_limit=3
+        particle.movement_vector.angle.value=random.random()*2*math.pi
+        particle.movement_vector.value=random.randint(1,10)
+        particle.draw(game)
+
+
+class Particle(GameObject):
+    START_SPEED = 2.0
+
+    def __init__(self,ident,*args,**kwargs):
+        GameObject.__init__(self,ident,*args,**kwargs)
+        self.width=10
+        self.speed_vector=Vector(self.angle,0.0)
+        self.polygon=[]
+        self.moment=0.0
+        self.rnd_factor1=random.random()
+        self.rnd_factor2=random.random()
+
+    def get_speed_limit(self):
+        return self.width/SPEED_LIMIT_BY_SIZE
+
+    def draw(self, game):
+        p1=(0,-int(self.width/3*self.rnd_factor2))
+        p2=(self.width/2,0)
+        p3=(0,self.width/5)
+        p4=(-int(self.width/2*self.rnd_factor1),self.width/4)
+
+        p1=apply_rot(self.angle.value,*p1)
+        p2=apply_rot(self.angle.value,*p2)
+        p3=apply_rot(self.angle.value,*p3)
+        p4=apply_rot(self.angle.value,*p4)
+
+        p1=apply_trans(self,*p1)
+        p2=apply_trans(self,*p2)
+        p3=apply_trans(self,*p3)
+        p4=apply_trans(self,*p4)
+
+        self.polygon=[p1,p2,p3,p4]
+
+
+    def apply_movement(self):
+        self.angle+=self.moment
+        GameObject.apply_movement(self)
 
 class Asteroid(GameObject):
     START_SPEED = 2.0
@@ -513,6 +565,30 @@ class AsteroidManager(object):
 
         self.last_creation=datetime.datetime.now()
 
+def place_object_in_field(obj,border=0,safe_zone=0):
+    while not game.isStopped() :
+        game.receiveServerCommands()
+
+        rand_x = random.randint(border,SPACE_X-border)
+        rand_y = random.randint(border,SPACE_Y-border)
+        rand_angle = random.random()*2*math.pi
+
+        obj.x = rand_x
+        obj.y = rand_y
+        obj.angle.value = rand_angle
+
+        obj.draw(game)
+
+        for go in game_objects:
+            if go.polygon is None or len(go.polygon) == 0:
+                go.draw(game)
+            if go is not obj and go.is_colliding(obj):
+                continue
+            if go.distance(obj)<safe_zone:
+                continue
+
+        break
+
 
 class ScoreManager(object):
 
@@ -594,118 +670,143 @@ while True:
     am=AsteroidManager()
     score_manager = ScoreManager()
 
+    place_object_in_field(player1,300,700)
+    place_object_in_field(player2,300,700)
+
+    player1.movement_vector.value=random.randint(1,3)
+    player1.movement_vector.angle=player1.angle
+    player2.movement_vector.value=random.randint(1,3)
+    player2.movement_vector.angle=player2.angle
+
 
     while not game.isStopped():
 
-        game_duration = (datetime.datetime.now() - game_start_time).total_seconds()
+        try:
 
-        winner_bonus = (GAME_DURATION - game_duration) * 100
+            game_duration = (datetime.datetime.now() - game_start_time).total_seconds()
 
-        game.newFrame()
+            winner_bonus = (GAME_DURATION - game_duration) * 100
 
-        game.receiveServerCommands()
+            game.newFrame()
 
-        if game.player1_keys:
-            if game.player1_keys.xn :
-                player1.angle.add(-dangle)
-            elif game.player1_keys.xp :
-                player1.angle.add(dangle)
+            game.receiveServerCommands()
 
-            player1.booster = game.player1_keys.a
-            player1.fire =    game.player1_keys.b
+            if game.player1_keys:
+                if game.player1_keys.xn :
+                    player1.angle.add(-dangle)
+                elif game.player1_keys.xp :
+                    player1.angle.add(dangle)
 
-        if game.player2_keys:
-            if game.player2_keys.xn :
-                player2.angle.add(-dangle)
-            elif game.player2_keys.xp :
-                player2.angle.add(dangle)
+                player1.booster = game.player1_keys.a
+                player1.fire =    game.player1_keys.b
 
-            player2.booster = game.player2_keys.a
-            player2.fire =    game.player2_keys.b
+            if game.player2_keys:
+                if game.player2_keys.xn :
+                    player2.angle.add(-dangle)
+                elif game.player2_keys.xp :
+                    player2.angle.add(dangle)
 
-        for player in [player1, player2] :
-            player.do_fire()
+                player2.booster = game.player2_keys.a
+                player2.fire =    game.player2_keys.b
 
-        am.manage_asteroids(game_objects)
+            for player in [player1, player2] :
+                player.do_fire()
 
-        for game_obj in game_objects:
-            game_obj.apply_movement()
+            am.manage_asteroids(game_objects)
+
+            for game_obj in game_objects:
+                game_obj.apply_movement()
 
 
-        for game_obj in game_objects:
-            game_obj.draw(game)
+            for game_obj in game_objects:
+                game_obj.draw(game)
 
-        for go1 in game_objects:
-            assert(go1.polygon is not None)
-            for go2 in game_objects:
-                assert(go2.polygon is not None)
-                if go1 is not go2 :
-                    if go1.is_colliding(go2):
-                        go1.collide(go2)
+            for go1 in game_objects:
+                assert(go1.polygon is not None)
+                for go2 in game_objects:
+                    assert(go2.polygon is not None)
+                    if go1 is not go2 :
+                        if go1.is_colliding(go2):
+                            go1.collide(go2)
 
-        no_clone_objects = [obj for obj in game_objects if not obj.is_clone()]
+            no_clone_objects = [obj for obj in game_objects if not obj.is_clone()]
 
-        for game_obj in no_clone_objects:
+            for game_obj in no_clone_objects:
 
-            crossing = False
+                crossing = False
 
-            if game_obj.intersects(BORDER_RIGHT):
-                game_obj.on_screen_wrap()
-                the_clone = game_obj.clone()
-                the_clone.x = game_obj.x - SPACE_X
-                the_clone.y = game_obj.y
-                crossing = True
+                if game_obj.intersects(BORDER_RIGHT):
+                    game_obj.on_screen_wrap()
+                    the_clone = game_obj.clone()
+                    the_clone.x = game_obj.x - SPACE_X
+                    the_clone.y = game_obj.y
+                    crossing = True
 
-            elif game_obj.intersects(BORDER_LEFT):
-                game_obj.on_screen_wrap()
-                the_clone = game_obj.clone()
-                the_clone.x = game_obj.x + SPACE_X
-                the_clone.y = game_obj.y
-                crossing = True
+                elif game_obj.intersects(BORDER_LEFT):
+                    game_obj.on_screen_wrap()
+                    the_clone = game_obj.clone()
+                    the_clone.x = game_obj.x + SPACE_X
+                    the_clone.y = game_obj.y
+                    crossing = True
 
-            elif game_obj.intersects(BORDER_TOP):
-                game_obj.on_screen_wrap()
-                the_clone = game_obj.clone()
-                the_clone.x = game_obj.x
-                the_clone.y = game_obj.y - SPACE_Y
-                crossing = True
+                elif game_obj.intersects(BORDER_TOP):
+                    game_obj.on_screen_wrap()
+                    the_clone = game_obj.clone()
+                    the_clone.x = game_obj.x
+                    the_clone.y = game_obj.y - SPACE_Y
+                    crossing = True
 
-            elif game_obj.intersects(BORDER_BOTTOM):
-                game_obj.on_screen_wrap()
-                the_clone = game_obj.clone()
-                the_clone.x = game_obj.x
-                the_clone.y = game_obj.y + SPACE_Y
-                crossing = True
+                elif game_obj.intersects(BORDER_BOTTOM):
+                    game_obj.on_screen_wrap()
+                    the_clone = game_obj.clone()
+                    the_clone.x = game_obj.x
+                    the_clone.y = game_obj.y + SPACE_Y
+                    crossing = True
 
-            if not game_obj.is_visible() and game_obj.has_clone() :
-                game_obj.x = game_obj.current_clone.x
-                game_obj.y = game_obj.current_clone.y
-                game_obj.unclone()
+                if not game_obj.is_visible() and game_obj.has_clone() :
+                    game_obj.x = game_obj.current_clone.x
+                    game_obj.y = game_obj.current_clone.y
+                    game_obj.unclone()
 
-            if game_obj.is_visible() and game_obj.has_clone() and not crossing:
-                game_obj.unclone()
+                if game_obj.is_visible() and game_obj.has_clone() and not crossing:
+                    game_obj.unclone()
 
-        for game_obj in game_objects:
-            draw_poly(game, game_obj)
-            assert isinstance(game_obj, GameObject)
-            game_obj.expire()
+                if game_obj.x < -500 or game_obj.x > SPACE_X+500 or game_obj.y < -500 or game_obj.y > SPACE_Y+500:
+                    if game_obj.has_clone():
+                        game_obj.unclone()
 
-        game.refresh()
+                    place_object_in_field(game_obj)
 
-        game.endFrame()
 
-        if player1.status==STATUS_DEAD or player2.status==STATUS_DEAD:
-            print("Player1: {} Player2: {}".format(player1.score, player2.score))
+            for game_obj in game_objects:
+                draw_poly(game, game_obj)
+                assert isinstance(game_obj, GameObject)
+                game_obj.expire()
 
-            if player2.status==STATUS_DEAD and player1.status==STATUS_ALIVE :
-                double_display("P 1","WINS")
-            elif player1.status==STATUS_DEAD and player2.status==STATUS_ALIVE :
-                double_display("P 2","WINS")
-            else:
-                double_display("DRAW")
+            game.refresh()
 
-            time.sleep(3)
+            game.endFrame()
 
+            exists_particle = any(( isinstance(o, Particle) for o in game_objects))
+
+            if player1.status==STATUS_DEAD or player2.status==STATUS_DEAD and not exists_particle:
+                print("Player1: {} Player2: {}".format(player1.score, player2.score))
+
+                if player2.status==STATUS_DEAD and player1.status==STATUS_ALIVE :
+                    double_display("P 1","WINS")
+                elif player1.status==STATUS_DEAD and player2.status==STATUS_ALIVE :
+                    double_display("P 2","WINS")
+                else:
+                    double_display("DRAW","")
+
+                time.sleep(3)
+
+                break
+
+        except KeyboardInterrupt:
+            import pdb; pdb.set_trace()
+        except Exception as e :
+            print(e)
             break
 
     game.pause()
