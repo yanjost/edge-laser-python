@@ -283,7 +283,10 @@ class LaserGame(object):
 
     def sendCmd(self, data):
         # print("Sending '{}'".format(str(data)))
-        return self.sock.send(data)
+        try:
+            return self.sock.send(data)
+        except Exception as e:
+            print("Exception ignored in sendCmd: {}".format(e))
 
     def sendPacket(self, cls, **kwargs):
         # print("Sending {} {}".format(cls.name, ", ".join(["{}={}".format(k,v) for k,v in kwargs.iteritems()])))
