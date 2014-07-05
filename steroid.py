@@ -1,6 +1,7 @@
 import copy
 import datetime
 import random
+import traceback
 import EdgeLaser
 import time
 import math
@@ -619,7 +620,7 @@ def double_scroll(text1, text2):
     #
     i=0
 
-    while i < 3000 :
+    while i < 3000 and not game.isStopped() :
         game.newFrame()
         font.render(game, text1, i-500, 500, coeff=20)
         font.render(game, text2, 500-i, 700, coeff=20)
@@ -661,7 +662,7 @@ def double_display(text1, text2):
     #
     i=0
 
-    while not game.isStopped() and i < 3000:
+    while not game.isStopped() and i < 3000 :
         game.newFrame()
         font.render(game, text1, 1, 500, coeff=20, spacing_factor=3)
         font.render(game, text2, 1, 700, coeff=20, spacing_factor=3)
@@ -827,14 +828,15 @@ while True:
                 else:
                     double_display("DRAW","")
 
-                time.sleep(3)
 
                 break
 
         except KeyboardInterrupt:
             import pdb; pdb.set_trace()
-        except Exception as e :
-            print(e)
+        except:
+            print("Got exception in game loop, restarting")
+            traceback.format_stack()
+            traceback.print_exc()
             break
 
     game.pause()
